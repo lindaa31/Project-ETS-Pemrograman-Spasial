@@ -1,0 +1,6 @@
+# Abaikan folder data mentah dan temp yang besar
+data/sentinel/
+data/hasil/
+temp_terra/
+.RData
+.Rhistory
