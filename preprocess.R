@@ -1,7 +1,7 @@
 # ================================================================
 # PREPROCESSING WEBGIS KABUPATEN PROBOLINGGO
 # Sentinel-2B L2A, 03 Juli 2026, tile T49MGM
-# NDVI, NDWI, NDCI (eksperimen B07/B03), NDBI, komposit
+# NDVI, NDWI, NDCI (adaptasi Red-NIR), NDBI, komposit
 # ================================================================
 
 # Memaksa R menggunakan lingkungan PROJ bawaan R sendiri (mengatasi konflik PostGIS/PostgreSQL)
@@ -137,30 +137,31 @@ crop_band <- function(band,res_m=20) {
   else r <- terra::ifel(r==0 | r==65535,NA,r)
   r
 }
-B03 <- crop_band('B03'); B04 <- crop_band('B04')
-B07 <- crop_band('B07'); B11 <- crop_band('B11')
+B03 <- crop_band('B03'); B04 <- crop_band('B04'); B11 <- crop_band('B11')
 SCL <- crop_band('SCL'); B08_10 <- crop_band('B08',10)
 B08 <- terra::resample(B08_10,B03,method='bilinear')
 selaras <- function(r,method='bilinear') {
   if (terra::compareGeom(r,B03,stopOnError=FALSE)) return(r)
   terra::resample(r,B03,method=method)
 }
-B04 <- selaras(B04); B07 <- selaras(B07); B11 <- selaras(B11)
+B04 <- selaras(B04); B11 <- selaras(B11)
 SCL <- selaras(SCL,'near')
 mask_simpan <- function(r,nama) terra::mask(
   r,roi,filename=file.path(dir_hasil,paste0('CROP_',nama,'.tif')),overwrite=TRUE)
-B03 <- mask_simpan(B03,'B03'); B04 <- mask_simpan(B04,'B04')
-B07 <- mask_simpan(B07,'B07'); B08 <- mask_simpan(B08,'B08')
+B03 <- mask_simpan(B03,'B03'); B04 <- mask_simpan(B04,'B04'); B08 <- mask_simpan(B08,'B08')
 B11 <- mask_simpan(B11,'B11'); SCL <- mask_simpan(SCL,'SCL')
-if (!terra::compareGeom(B03,B04,B07,B08,B11,SCL,stopOnError=FALSE)) stop('Grid band tidak sama')
+if (!terra::compareGeom(B03,B04,B08,B11,SCL,stopOnError=FALSE)) stop('Grid band tidak sama')
 
 # 6. Ubah DN menjadi reflectance: (DN - 1000) / 10000
 ref <- function(r) (r-1000)/10000
-green <- ref(B03); red <- ref(B04); rededge <- ref(B07)
+green <- ref(B03); red <- ref(B04)
 nir <- ref(B08); swir <- ref(B11)
 
-# 7. Indeks. NDCI di sini EKSPERIMEN B07/B03, bukan indeks cloud baku.
-# B04/B08 dengan (B04-B08)/(B04+B08) hanyalah -NDVI.
+# 7. Indeks. Adaptasi spektral Red-NIR dari pendekatan Marshak et al. (2000).
+# NDCI = (B08-B04)/(B08+B04), menggunakan reflektansi Sentinel-2 L2A.
+# PENTING: secara matematis NDCI ini IDENTIK dengan NDVI karena band,
+# rumus, dan masking awan sama. BUKAN estimasi awan Marshak yang tervalidasi.
+# Kelas awan pada komposit tetap berasal dari SCL 8, 9, dan 10.
 hitung_indeks <- function(a,b,nama,mask_cloud=TRUE) {
   den <- a+b
   x <- terra::ifel(abs(den)<1e-6,NA,(a-b)/den)
@@ -176,7 +177,7 @@ hitung_indeks <- function(a,b,nama,mask_cloud=TRUE) {
 }
 NDVI <- hitung_indeks(nir,red,'NDVI')
 NDWI <- hitung_indeks(green,nir,'NDWI')
-NDCI <- hitung_indeks(rededge,green,'NDCI',mask_cloud=FALSE)
+NDCI <- hitung_indeks(nir,red,'NDCI')
 NDBI <- hitung_indeks(swir,nir,'NDBI')
 
 # 8. Komposit: 1 vegetasi, 2 bangunan, 3 air, 4 awan
@@ -227,7 +228,7 @@ terra::project(komposit,template,method='near',
 png(file.path(dir_hasil,'Preview_Indeks.png'),width=1400,height=1100)
 par(mfrow=c(2,2))
 plot(NDVI,main='NDVI - Vegetasi'); plot(NDWI,main='NDWI - Perairan')
-plot(NDCI,main='NDCI - Awan (eksperimen B07/B03)'); plot(NDBI,main='NDBI - Bangunan')
+plot(NDCI,main='NDCI - Adaptasi Red-NIR (sama dengan NDVI)'); plot(NDBI,main='NDBI - Bangunan')
 dev.off()
 png(file.path(dir_hasil,'Preview_Komposit.png'),width=1200,height=900)
 plot(komposit,col=c('#228B22','#E74C3C','#2196F3','#FFFFFF'),
