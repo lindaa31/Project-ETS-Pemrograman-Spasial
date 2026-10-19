@@ -94,7 +94,7 @@ runApp("app.R")
 ---
 
 ## Tautan Publik & Dokumentasi
-- **Aplikasi WebGIS (Shinyapps.io)**: [Tautan WebGIS Probolinggo](https://tugas-besar-pemspa-kelompok14.shinyapps.io/webgis-probolinggo/)
+- **Aplikasi WebGIS (Shinyapps.io)**: [Tautan WebGIS Analisis Indeks Spektral Probolinggo](https://tugas-besar-pemspa-kelompok14.shinyapps.io/webgis-probolinggo/)
 - **Repositori GitHub Rekan Kelompok**:
   - Talita Adzra Junita Arief: [ETS-pemspa](https://github.com/talitaaja/ETS-pemspa)
   - Linda Ambala Tifa Ramadhani: [Project-ETS-Pemrograman-Spasial](https://github.com/lindaa31/Project-ETS-Pemrograman-Spasial)
